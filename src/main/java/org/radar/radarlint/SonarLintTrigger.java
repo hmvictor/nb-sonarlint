@@ -1,12 +1,12 @@
 package org.radar.radarlint;
 
-import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -26,17 +26,13 @@ import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.text.Annotation;
 import org.openide.text.Line;
-import org.openide.util.Exceptions;
 import org.openide.util.Lookup;
-import org.openide.util.NbBundle;
 import org.openide.util.NbPreferences;
-import org.radar.radarlint.ui.SonarQubeOptionsPanel;
 import org.sonarsource.sonarlint.core.ConnectedSonarLintEngineImpl;
 import org.sonarsource.sonarlint.core.client.api.common.LogOutput;
 import org.sonarsource.sonarlint.core.client.api.common.ProgressMonitor;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
-import org.sonarsource.sonarlint.core.client.api.common.analysis.IssueListener;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedAnalysisConfiguration;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedGlobalConfiguration;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEngine;
@@ -52,6 +48,7 @@ public class SonarLintTrigger implements OnSaveTask{
     
     public static final String SERVER_URL_PROPERTY="sonarqube.server.url";
     public static final String DEFAULT_SERVER_URL="http://localhost:9000";
+    private static final String USER_AGENT = "RadarLint";
     
     private Document document;
     private FileObject fileObject;
@@ -69,26 +66,21 @@ public class SonarLintTrigger implements OnSaveTask{
         LOGGER.log(Level.INFO, "Thread name: {0}", Thread.currentThread().getName());
         LOGGER.log(Level.INFO, "perform on file object path: {0}", fileObject.getPath());
         LOGGER.log(Level.INFO, "Number of editor annotations: {0}", editorAnnotations.getOrDefault(fileObject, new LinkedList<>()).size());
-        try {
-            LOGGER.log(Level.INFO, "Document content: {0}", document.getText(0, document.getLength()));
-        } catch (BadLocationException ex) {
-            Exceptions.printStackTrace(ex);
-        }
         editorAnnotations.getOrDefault(fileObject.getPath(), new LinkedList<>()).forEach(editorAnnotation -> {
             editorAnnotation.detach();
         });
-        Executors.newSingleThreadExecutor().submit(new SonarAnalyzer(ProgressHandle.createHandle("Sonar")));
+        ExecutorService newSingleThreadExecutor = Executors.newSingleThreadExecutor();
+        newSingleThreadExecutor.submit(new SonarAnalyzer(ProgressHandle.createHandle("Sonar")));
+        newSingleThreadExecutor.shutdown();
     }
 
     @Override
     public void runLocked(Runnable r) {
-        LOGGER.log(Level.INFO, "RunLocked saveTaskImpl");
         r.run();
     }
 
     @Override
     public boolean cancel() {
-        LOGGER.log(Level.INFO, "Cancel saveTaskImpl");
         return true;
     }
     
@@ -123,6 +115,7 @@ public class SonarLintTrigger implements OnSaveTask{
     }
     private class SonarAnalyzer implements Callable<List<Issue>>{
         private ProgressHandle handle;
+        private Language[] enabledLanguages={Language.JAVA};
 
         public SonarAnalyzer(ProgressHandle handle) {
             this.handle = handle;
@@ -136,18 +129,12 @@ public class SonarLintTrigger implements OnSaveTask{
             });
             try{
                 List<Issue> issues=new LinkedList<>();
-                Language[] enabledLanguages={Language.JAVA};
+                
                 ConnectedGlobalConfiguration globalConfig=ConnectedGlobalConfiguration.builder()
                         .setServerId("123")
         //                .setWorkDir(StoragePathManager.getServerWorkDir(getId()))
         //                .setStorageRoot(StoragePathManager.getServerStorageRoot())
-                        .setLogOutput(new LogOutput() {
-
-                            @Override
-                            public void log(String string, LogOutput.Level level) {
-
-                            }
-
+                        .setLogOutput((String string, LogOutput.Level level) -> {
                         })
                         .addEnabledLanguages(enabledLanguages)
                         .build();
@@ -156,30 +143,18 @@ public class SonarLintTrigger implements OnSaveTask{
                 ConnectedAnalysisConfiguration.Builder builder = ConnectedAnalysisConfiguration.builder();
 
                 AtomicReference<String> projectKey=new AtomicReference();
-                boolean found=false;
-                for (Language enabledLanguage : enabledLanguages) {
-                    if(fileObject.getExt().equals(enabledLanguage.getLanguageKey())) {
-                        found=true;
-                        break;
-                    }
-                }
-                if(found) {
-                    LOGGER.log(Level.INFO, "File object to analyze: {0}", fileObject.getNameExt());
-                    ClientInputFile clientInputFile=null;
+                
+                if(isSupportedLanguage(fileObject)) {
                     try {
-                        clientInputFile = new ClientInputFileImpl(fileObject, document.getText(0, document.getLength()), false);
+                    LOGGER.log(Level.INFO, "File object to analyze: {0}", fileObject.getNameExt());
+                        ClientInputFile clientInputFile=new ContentClientInputFile(fileObject, document.getText(0, document.getLength()), false);
+                        inputFiles.add(clientInputFile);
+                        Project pro = FileOwnerQuery.getOwner(fileObject);
+                        projectKey.set(ProjectUtils.getInformation(pro).getName());
+                        builder.setBaseDir(Paths.get(pro.getProjectDirectory().getPath()));
                     } catch (BadLocationException ex) {
                         throw new RuntimeException(ex);
                     }
-                    try {
-                        LOGGER.log(Level.INFO, "File content: {0}", clientInputFile.contents());
-                    } catch (IOException ex) {
-                        Exceptions.printStackTrace(ex);
-                    }
-                    inputFiles.add(clientInputFile);
-                    Project pro = FileOwnerQuery.getOwner(fileObject);
-                    projectKey.set(ProjectUtils.getInformation(pro).getName());
-                    builder.setBaseDir(Paths.get(pro.getProjectDirectory().getPath()));
                 }
 
                 if(!inputFiles.isEmpty()) {
@@ -193,30 +168,19 @@ public class SonarLintTrigger implements OnSaveTask{
 
                     ServerConfiguration serverConfiguration=ServerConfiguration.builder()
                         .url(NbPreferences.forModule(SonarLintTrigger.class).get(SERVER_URL_PROPERTY, DEFAULT_SERVER_URL))
-                        .userAgent("RadarLint")
+                        .userAgent(USER_AGENT)
                         //.credentials(login, password)
                         .build();
                     ConnectedSonarLintEngine engine = new ConnectedSonarLintEngineImpl(globalConfig);
                     engine.update(serverConfiguration, new ProgressMonitor() { });
 
                     engine.updateProject(serverConfiguration, projectKey.get(), new ProgressMonitor() { });
-                    engine.analyze(analysisConfig, new IssueListener() {
-
-                        @Override
-                        public void handle(Issue issue) {
-                            LOGGER.log(Level.INFO, "Issue: {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}", new Object[]{issue.getInputFile().relativePath(), issue.getStartLine(), issue.getStartLineOffset(), issue.getEndLine(), issue.getEndLineOffset(), issue.getSeverity(), issue.getRuleName(), issue.getType(), issue.getMessage()});
-                            FileObject fileObject=issue.getInputFile().getClientObject();
-                            boolean attached = tryToAttachAnnotation(issue, fileObject);
-                            issues.add(issue);
-                        }
-
-                    }, new LogOutput() {
-
-                        @Override
-                        public void log(String string, LogOutput.Level level) {
-
-                        }
-
+                    engine.analyze(analysisConfig, (Issue issue) -> {
+                        LOGGER.log(Level.INFO, "Issue: {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}", new Object[]{issue.getInputFile().relativePath(), issue.getStartLine(), issue.getStartLineOffset(), issue.getEndLine(), issue.getEndLineOffset(), issue.getSeverity(), issue.getRuleName(), issue.getType(), issue.getMessage()});
+                        FileObject fileObject1 = issue.getInputFile().getClientObject();
+                        boolean attached = tryToAttachAnnotation(issue, fileObject1);
+                        issues.add(issue);
+                    }, (String string, LogOutput.Level level) -> {
                     }, new ProgressMonitor() {});
                 }
                 return issues;
@@ -225,6 +189,17 @@ public class SonarLintTrigger implements OnSaveTask{
                     handle.finish();
                 });
             }
+        }
+        
+        private boolean isSupportedLanguage(FileObject fileObject) {
+            boolean isEnabledLanguage=false;
+            for (Language enabledLanguage : enabledLanguages) {
+                if(fileObject.getExt().equals(enabledLanguage.getLanguageKey())) {
+                    isEnabledLanguage=true;
+                    break;
+                }
+            }
+            return isEnabledLanguage;
         }
         
         

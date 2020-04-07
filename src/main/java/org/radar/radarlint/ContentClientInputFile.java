@@ -13,12 +13,12 @@ import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile
  *
  * @author Víctor
  */
-public class ClientInputFileImpl implements ClientInputFile{
+public class ContentClientInputFile implements ClientInputFile{
     private FileObject fileObject;
     private String content;
     private boolean isTestFile;
 
-    public ClientInputFileImpl(FileObject fileObject, String content, boolean isTestFile) {
+    public ContentClientInputFile(FileObject fileObject, String content, boolean isTestFile) {
         this.fileObject = fileObject;
         this.isTestFile=isTestFile;
         this.content=content;
@@ -46,12 +46,12 @@ public class ClientInputFileImpl implements ClientInputFile{
 
     @Override
     public InputStream inputStream() throws IOException {
-        return content == null ? fileObject.getInputStream() : new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
     public String contents() throws IOException {
-        return content == null ? fileObject.asText(): content;
+        return content;
     }
 
     @Override
