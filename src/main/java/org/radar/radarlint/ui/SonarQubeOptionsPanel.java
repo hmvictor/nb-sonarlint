@@ -1,8 +1,6 @@
 package org.radar.radarlint.ui;
 
-import java.util.prefs.Preferences;
-import org.openide.util.NbPreferences;
-import org.radar.radarlint.SonarLintTrigger;
+import org.radar.radarlint.ServerUrlPreference;
 
 public final class SonarQubeOptionsPanel extends javax.swing.JPanel {
 
@@ -51,13 +49,11 @@ public final class SonarQubeOptionsPanel extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     protected void load() {
-         Preferences nbPreferences = NbPreferences.forModule(SonarLintTrigger.class);
-         serverAddress.setText(nbPreferences.get(SonarLintTrigger.SERVER_URL_PROPERTY, SonarLintTrigger.DEFAULT_SERVER_URL));
+         serverAddress.setText(new ServerUrlPreference().getValue());
     }
 
     protected void store() {
-        final Preferences nbPreferences = NbPreferences.forModule(SonarQubeOptionsPanel.class);
-        nbPreferences.put("address", serverAddress.getText());
+        new ServerUrlPreference().setValue(serverAddress.getText());
     }
 
     boolean valid() {

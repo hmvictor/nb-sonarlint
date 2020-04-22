@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.prefs.Preferences;
+import java.util.regex.Pattern;
 import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -20,7 +22,6 @@ import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.modules.parsing.api.Source;
 import org.netbeans.spi.editor.document.OnSaveTask;
 import org.openide.filesystems.FileObject;
-import org.openide.util.NbPreferences;
 import org.sonarsource.sonarlint.core.ConnectedSonarLintEngineImpl;
 import org.sonarsource.sonarlint.core.client.api.common.LogOutput;
 import org.sonarsource.sonarlint.core.client.api.common.ProgressMonitor;
@@ -32,6 +33,7 @@ import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEng
 import org.sonarsource.sonarlint.core.client.api.connected.Language;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
 import org.apache.maven.model.Model;
+import org.radar.radarlint.ui.SonarLintPropertiesComponent;
 
 /**
  *
@@ -40,13 +42,11 @@ import org.apache.maven.model.Model;
 public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
     private static final Logger LOGGER = Logger.getLogger(SonarLintTrigger.class.getName());
     
-    public static final String SERVER_URL_PROPERTY="sonarqube.server.url";
-    public static final String DEFAULT_SERVER_URL="http://localhost:9000";
-    private static final String USER_AGENT = "RadarLint";
+    private static final String USER_AGENT = "SonarLint Netbeans";
     
-    private Document document;
-    private FileObject fileObject;
-    private Language[] enabledLanguages={Language.JAVA};
+    private final Language[] enabledLanguages=Language.values();
+    private final Document document;
+    private final FileObject fileObject;
     private ProgressHandle handle;
 
     public SonarLintTrigger(Document document) {
@@ -57,10 +57,21 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
     
     @Override
     public void performTask() {
+        Project currentProject = FileOwnerQuery.getOwner(fileObject);
+        Preferences preferences = ProjectUtils.getPreferences(currentProject, SonarLintPropertiesComponent.class, false);
+        
+        PreferenceAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
+        if(!sonarLintActivePreference.getValue())  {
+            return;
+        }
+        if (isExcludedFile(preferences, fileObject)) {
+            return;
+        }
+        
         LOGGER.log(Level.INFO, "Perform saveTaskImpl {0}", fileObject == null ? fileObject:fileObject.getNameExt());
         LOGGER.log(Level.INFO, "Thread name: {0}", Thread.currentThread().getName());
         LOGGER.log(Level.INFO, "perform on file object path: {0}", fileObject.getPath());
-        new EditorAnnotator().cleanEditorAnnotations(fileObject);
+        EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject);
         handle=ProgressHandle.createHandle("SonarLint");
         CompletableFuture.supplyAsync(this)
             .exceptionallyAsync((Throwable t) -> {
@@ -71,6 +82,17 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
                     handle.finish();
                 });
             });
+    }
+
+    public static boolean isExcludedFile(Preferences preferences, FileObject fileObject) {
+        PreferenceAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
+        String patterns[] = excludedFilePatternsPreference.getValue().split("\\s*,\\s*");
+        for (String pattern : patterns) {
+            if (Pattern.compile(pattern).matcher(fileObject.getNameExt()).matches()) {
+                return true;
+            }
+        }
+        return false;
     }
     
     @Override
@@ -118,7 +140,7 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
                     .build();
 
                 ServerConfiguration serverConfiguration=ServerConfiguration.builder()
-                    .url(NbPreferences.forModule(SonarLintTrigger.class).get(SERVER_URL_PROPERTY, DEFAULT_SERVER_URL))
+                    .url(new ServerUrlPreference().getValue())
                     .userAgent(USER_AGENT)
                     //.credentials(login, password)
                     .build();
@@ -129,7 +151,7 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
                 engine.analyze(analysisConfig, (Issue issue) -> {
                     LOGGER.log(Level.INFO, "Issue: {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}", new Object[]{issue.getInputFile().relativePath(), issue.getStartLine(), issue.getStartLineOffset(), issue.getEndLine(), issue.getEndLineOffset(), issue.getSeverity(), issue.getRuleName(), issue.getType(), issue.getMessage()});
                     FileObject fileObject1 = issue.getInputFile().getClientObject();
-                    boolean attached = new EditorAnnotator().tryToAttachAnnotation(issue, fileObject1);
+                    boolean attached = EditorAnnotator.getInstance().tryToAttachAnnotation(issue, fileObject1);
                     issues.add(issue);
                 }, (String string, LogOutput.Level level) -> {
                 }, new ProgressMonitor() {});

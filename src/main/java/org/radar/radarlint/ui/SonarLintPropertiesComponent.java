@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.radar.radarlint.ui;
 
 /**
@@ -17,6 +12,22 @@ public class SonarLintPropertiesComponent extends javax.swing.JPanel {
     public SonarLintPropertiesComponent() {
         initComponents();
     }
+    
+    public boolean isSonarLintActive() {
+        return activeCheckbox.isSelected();
+    }
+    
+    public void setSonarLintActive(boolean active) {
+        activeCheckbox.setSelected(active);
+    }
+    
+    public String getExcludedFilePatterns() {
+        return excludedFilePatternsTextfield.getText();
+    }
+    
+    public void setExcludedFilePatterns(String patterns) {
+        excludedFilePatternsTextfield.setText(patterns);
+    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -27,18 +38,18 @@ public class SonarLintPropertiesComponent extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jCheckBox1 = new javax.swing.JCheckBox();
+        activeCheckbox = new javax.swing.JCheckBox();
         jLabel1 = new javax.swing.JLabel();
         jScrollPane1 = new javax.swing.JScrollPane();
-        jTextArea1 = new javax.swing.JTextArea();
+        excludedFilePatternsTextfield = new javax.swing.JTextArea();
 
-        org.openide.awt.Mnemonics.setLocalizedText(jCheckBox1, org.openide.util.NbBundle.getMessage(SonarLintPropertiesComponent.class, "SonarLintPropertiesComponent.jCheckBox1.text")); // NOI18N
+        org.openide.awt.Mnemonics.setLocalizedText(activeCheckbox, org.openide.util.NbBundle.getMessage(SonarLintPropertiesComponent.class, "SonarLintPropertiesComponent.activeCheckbox.text")); // NOI18N
 
         org.openide.awt.Mnemonics.setLocalizedText(jLabel1, org.openide.util.NbBundle.getMessage(SonarLintPropertiesComponent.class, "SonarLintPropertiesComponent.jLabel1.text")); // NOI18N
 
-        jTextArea1.setColumns(20);
-        jTextArea1.setRows(5);
-        jScrollPane1.setViewportView(jTextArea1);
+        excludedFilePatternsTextfield.setColumns(20);
+        excludedFilePatternsTextfield.setRows(5);
+        jScrollPane1.setViewportView(excludedFilePatternsTextfield);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -49,30 +60,29 @@ public class SonarLintPropertiesComponent extends javax.swing.JPanel {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jCheckBox1)
-                            .addComponent(jLabel1))
-                        .addGap(0, 200, Short.MAX_VALUE)))
+                        .addComponent(activeCheckbox)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(jLabel1))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jCheckBox1)
+                .addComponent(activeCheckbox)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jLabel1)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(142, Short.MAX_VALUE))
+                .addContainerGap(128, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JCheckBox jCheckBox1;
+    private javax.swing.JCheckBox activeCheckbox;
+    private javax.swing.JTextArea excludedFilePatternsTextfield;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTextArea jTextArea1;
     // End of variables declaration//GEN-END:variables
 }
