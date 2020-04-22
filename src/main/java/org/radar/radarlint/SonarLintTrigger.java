@@ -103,14 +103,7 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
         });
         try{
             List<Issue> issues=new LinkedList<>();
-
-            ConnectedGlobalConfiguration globalConfig=ConnectedGlobalConfiguration.builder()
-                    .setServerId("123")
-    //                .setWorkDir(StoragePathManager.getServerWorkDir(getId()))
-    //                .setStorageRoot(StoragePathManager.getServerStorageRoot())
-                    .setLogOutput((String string, LogOutput.Level level) -> {})
-                    .addEnabledLanguages(enabledLanguages)
-                    .build();
+            long startTime=System.currentTimeMillis();
             LinkedList<ClientInputFile> inputFiles = new LinkedList<>();
 
             ConnectedAnalysisConfiguration.Builder builder = ConnectedAnalysisConfiguration.builder();
@@ -119,7 +112,7 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
 
             if(isSupportedLanguage(fileObject)) {
                 try {
-                LOGGER.log(Level.INFO, "File object to analyze: {0}", fileObject.getNameExt());
+                    LOGGER.log(Level.INFO, "{0} File object to analyze: {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, fileObject.getNameExt()});
                     ClientInputFile clientInputFile=new ContentClientInputFile(fileObject, document.getText(0, document.getLength()), false);
                     inputFiles.add(clientInputFile);
                     Project pro = FileOwnerQuery.getOwner(fileObject);
@@ -144,17 +137,37 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
                     .userAgent(USER_AGENT)
                     //.credentials(login, password)
                     .build();
-                ConnectedSonarLintEngine engine = new ConnectedSonarLintEngineImpl(globalConfig);
-                engine.update(serverConfiguration, new ProgressMonitor() { });
-
-                engine.updateProject(serverConfiguration, projectKey.get(), new ProgressMonitor() { });
+                ConnectedSonarLintEngine engine = SonarLintEngineFactory.getOrCreateEngine(enabledLanguages);
+                if(engine.checkIfGlobalStorageNeedUpdate(serverConfiguration, new ProgressMonitor() {}).needUpdate()) {
+                    LOGGER.log(Level.INFO, "{0} Updating global", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
+                    engine.update(serverConfiguration, new ProgressMonitor() { });
+                }
+                
+                if(engine.checkIfProjectStorageNeedUpdate(serverConfiguration, projectKey.get(), new ProgressMonitor() { }).needUpdate()) {
+                    LOGGER.log(Level.INFO, "{0} Updating project", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
+                    engine.updateProject(serverConfiguration, projectKey.get(), new ProgressMonitor() { });
+                }
+                LOGGER.log(Level.INFO, "{0} Start analisys", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
                 engine.analyze(analysisConfig, (Issue issue) -> {
                     LOGGER.log(Level.INFO, "Issue: {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}", new Object[]{issue.getInputFile().relativePath(), issue.getStartLine(), issue.getStartLineOffset(), issue.getEndLine(), issue.getEndLineOffset(), issue.getSeverity(), issue.getRuleName(), issue.getType(), issue.getMessage()});
                     FileObject fileObject1 = issue.getInputFile().getClientObject();
                     boolean attached = EditorAnnotator.getInstance().tryToAttachAnnotation(issue, fileObject1);
                     issues.add(issue);
                 }, (String string, LogOutput.Level level) -> {
-                }, new ProgressMonitor() {});
+                    LOGGER.log(Level.INFO, "{0} {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, string});
+                }, new ProgressMonitor() {
+                    
+                    @Override
+                    public void setFraction(float fraction) {
+                        LOGGER.log(Level.INFO, "{0} fraction: {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, fraction});
+                    }
+
+                    @Override
+                    public void setMessage(String msg) {
+                        LOGGER.log(Level.INFO, "{0} message: {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, msg});
+                    }
+                    
+                });
             }
             return issues;
         }finally{

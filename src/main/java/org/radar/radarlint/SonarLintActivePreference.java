@@ -14,7 +14,7 @@ public class SonarLintActivePreference extends AbstractPreferenceAccessor<Boolea
 
     @Override
     public void setValue(Boolean value) {
-        getPreferences().putBoolean(getPreferenceKey(), true);
+        getPreferences().putBoolean(getPreferenceKey(), value);
     }
 
     @Override
