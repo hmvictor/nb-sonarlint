@@ -1,10 +1,12 @@
 package org.radar.radarlint;
 
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -15,88 +17,59 @@ import java.util.regex.Pattern;
 import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
+import org.apache.maven.model.Model;
 import org.netbeans.api.progress.ProgressHandle;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.modules.parsing.api.Source;
-import org.netbeans.spi.editor.document.OnSaveTask;
 import org.openide.filesystems.FileObject;
-import org.sonarsource.sonarlint.core.ConnectedSonarLintEngineImpl;
+import org.radar.radarlint.ui.SonarLintPropertiesComponent;
 import org.sonarsource.sonarlint.core.client.api.common.LogOutput;
 import org.sonarsource.sonarlint.core.client.api.common.ProgressMonitor;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedAnalysisConfiguration;
-import org.sonarsource.sonarlint.core.client.api.connected.ConnectedGlobalConfiguration;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEngine;
 import org.sonarsource.sonarlint.core.client.api.connected.Language;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
-import org.apache.maven.model.Model;
-import org.radar.radarlint.ui.SonarLintPropertiesComponent;
 
 /**
  *
  * @author Víctor
  */
-public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
-    private static final Logger LOGGER = Logger.getLogger(SonarLintTrigger.class.getName());
+public class SonarLintScanner implements Supplier<List<Issue>>  {
+    private static final Logger LOGGER = Logger.getLogger(SonarLintSaveTask.class.getName());
     
     private static final String USER_AGENT = "SonarLint Netbeans";
     
     private final Language[] enabledLanguages=Language.values();
-    private final Document document;
     private final FileObject fileObject;
-    private ProgressHandle handle;
-
-    public SonarLintTrigger(Document document) {
-        this.document=document;
-        Source source = Source.create(document);
-        fileObject = source.getFileObject();
+    private final String text;
+    
+    private SonarLintScanner(FileObject fileObject, String content) {
+        this.fileObject = fileObject;
+        this.text=content;
     }
     
-    @Override
-    public void performTask() {
-        Project currentProject = FileOwnerQuery.getOwner(fileObject);
-        Preferences preferences = ProjectUtils.getPreferences(currentProject, SonarLintPropertiesComponent.class, false);
-        
-        PreferenceAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
-        if(!sonarLintActivePreference.getValue())  {
-            return;
-        }
-        if (isExcludedFile(preferences, fileObject)) {
-            return;
-        }
-        
-        LOGGER.log(Level.INFO, "Perform saveTaskImpl {0}", fileObject == null ? fileObject:fileObject.getNameExt());
-        LOGGER.log(Level.INFO, "Thread name: {0}", Thread.currentThread().getName());
+    public FileObject getFileObject() {
+        return fileObject;
+    }
+    
+    public void runAsync() {
         LOGGER.log(Level.INFO, "perform on file object path: {0}", fileObject.getPath());
+        
         EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject);
-        handle=ProgressHandle.createHandle("SonarLint");
         CompletableFuture.supplyAsync(this)
             .exceptionallyAsync((Throwable t) -> {
                 LOGGER.log(Level.WARNING, t.toString(), t);
                 return null;
-            }).whenComplete((List<Issue> t, Throwable u) -> {
-                SwingUtilities.invokeLater(() -> {
-                    handle.finish();
-                });
             });
-    }
-
-    public static boolean isExcludedFile(Preferences preferences, FileObject fileObject) {
-        PreferenceAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
-        String patterns[] = excludedFilePatternsPreference.getValue().split("\\s*,\\s*");
-        for (String pattern : patterns) {
-            if (Pattern.compile(pattern).matcher(fileObject.getNameExt()).matches()) {
-                return true;
-            }
-        }
-        return false;
     }
     
     @Override
     public List<Issue> get() {
+        ProgressHandle handle = ProgressHandle.createHandle("SonarLint");
         SwingUtilities.invokeLater(() -> {
             handle.start();
             handle.switchToIndeterminate();
@@ -111,16 +84,12 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
             AtomicReference<String> projectKey=new AtomicReference();
 
             if(isSupportedLanguage(fileObject)) {
-                try {
-                    LOGGER.log(Level.INFO, "{0} File object to analyze: {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, fileObject.getNameExt()});
-                    ClientInputFile clientInputFile=new ContentClientInputFile(fileObject, document.getText(0, document.getLength()), false);
-                    inputFiles.add(clientInputFile);
-                    Project pro = FileOwnerQuery.getOwner(fileObject);
-                    projectKey.set(getProjectKey(pro));
-                    builder.setBaseDir(Paths.get(pro.getProjectDirectory().getPath()));
-                } catch (BadLocationException ex) {
-                    throw new RuntimeException(ex);
-                }
+                LOGGER.log(Level.INFO, "{0} File object to analyze: {1}", new Object[]{(System.currentTimeMillis()-startTime)/1000f, fileObject.getNameExt()});
+                ClientInputFile clientInputFile=new ContentClientInputFile(fileObject, text, false);
+                inputFiles.add(clientInputFile);
+                Project pro = FileOwnerQuery.getOwner(fileObject);
+                projectKey.set(getProjectKey(pro));
+                builder.setBaseDir(Paths.get(pro.getProjectDirectory().getPath()));
             }
 
             if(!inputFiles.isEmpty()) {
@@ -176,7 +145,7 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
             });
         }
     }
-
+    
     private boolean isSupportedLanguage(FileObject fileObject) {
         boolean isEnabledLanguage=false;
         for (Language enabledLanguage : enabledLanguages) {
@@ -197,15 +166,41 @@ public class SonarLintTrigger implements OnSaveTask, Supplier<List<Issue>> {
             return ProjectUtils.getInformation(project).getName();
         }
     }
-
-    @Override
-    public void runLocked(Runnable r) {
-        r.run();
+    
+    private static boolean isScanningNeeded(FileObject fileObject) {
+        Project ownerProject = FileOwnerQuery.getOwner(fileObject);
+        Preferences preferences = ProjectUtils.getPreferences(ownerProject, SonarLintPropertiesComponent.class, false);
+        PreferenceAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
+        return sonarLintActivePreference.getValue() && !isExcludedFile(preferences, fileObject);
     }
-
-    @Override
-    public boolean cancel() {
-        return true;
+    
+    public static boolean isExcludedFile(Preferences preferences, FileObject fileObject) {
+        PreferenceAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
+        String patterns[] = excludedFilePatternsPreference.getValue().split("\\s*,\\s*");
+        for (String pattern : patterns) {
+            if (Pattern.compile(pattern).matcher(fileObject.getNameExt()).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public static Optional<SonarLintScanner> of(Document document) throws BadLocationException {
+        Source source = Source.create(document);
+        FileObject fileObject = source.getFileObject();
+        if(isScanningNeeded(fileObject)) {
+            return Optional.of(new SonarLintScanner(fileObject, document.getText(0, document.getLength())));
+        }else{
+            return Optional.empty();
+        }
+    }
+    
+    public static Optional<SonarLintScanner> of(FileObject fileObject) throws IOException {
+        if(isScanningNeeded(fileObject)) {
+            return Optional.of(new SonarLintScanner(fileObject, fileObject.asText()));
+        }else{
+            return Optional.empty();
+        }
     }
     
 }

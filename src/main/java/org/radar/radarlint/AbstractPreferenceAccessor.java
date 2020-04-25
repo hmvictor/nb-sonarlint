@@ -6,7 +6,7 @@ import java.util.prefs.Preferences;
  *
  * @author Víctor
  */
-public abstract class AbstractPreferenceAccessor<T> implements PreferenceAccessor<T> {
+public abstract class AbstractPreferenceAccessor<T> implements PreferenceAccessor<T> {  
     
     private Preferences preferences;
     private String key;

@@ -9,9 +9,9 @@ import org.netbeans.spi.project.ui.support.ProjectCustomizer;
 import org.openide.util.Lookup;
 import org.radar.radarlint.EditorAnnotator;
 import org.radar.radarlint.PreferenceAccessor;
-import org.radar.radarlint.SonarLintTrigger;
 import org.radar.radarlint.ExcludedFilePatterns;
 import org.radar.radarlint.SonarLintActivePreference;
+import org.radar.radarlint.SonarLintScanner;
 
 /**
  *
@@ -49,7 +49,7 @@ public class SonarLintCustomizerTab implements ProjectCustomizer.CompositeCatego
                     editorAnnotator.cleanEditorAnnotations(currentProject);
                 }else{
                     editorAnnotator.getFileObjects(currentProject).forEach((fileObject) -> {
-                        if(SonarLintTrigger.isExcludedFile(preferences, fileObject)) {
+                        if(SonarLintScanner.isExcludedFile(preferences, fileObject)) {
                             editorAnnotator.cleanEditorAnnotations(fileObject);
                         }
                     });

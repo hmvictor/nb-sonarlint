@@ -10,7 +10,7 @@ public class ServerUrlPreference extends AbstractPreferenceAccessor<String>{
     private static final String DEFAULT_SERVER_URL="http://localhost:9000";
 
     public ServerUrlPreference() {
-        super(NbPreferences.forModule(SonarLintTrigger.class), "sonarqube.server.url");
+        super(NbPreferences.forModule(SonarLintSaveTask.class), "sonarqube.server.url");
     }
     
     @Override

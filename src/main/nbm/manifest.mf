@@ -1,4 +1,5 @@
 Manifest-Version: 1.0
+OpenIDE-Module-Install: org/radar/radarlint/Installer.class
 OpenIDE-Module-Layer: org/radar/radarlint/layer.xml
 OpenIDE-Module-Localizing-Bundle: org/radar/radarlint/Bundle.properties
 OpenIDE-Module-Requires: org.openide.windows.WindowManager
