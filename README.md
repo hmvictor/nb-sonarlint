@@ -9,6 +9,6 @@ To see the rule details, put the caret position in the line with a issue and cho
 
 The SonarQube server url (default is http://localhost:9000) and user token can be set in **Tools > Options > Miscellaneous > SonarQube**. 
 
-## Per Project Setting ##
+## Per Project Properties ##
 
 SonarLint can be enabled or disabled per project in **Properties > SonarLint**. A list of excluded files can also be defined in this section.
