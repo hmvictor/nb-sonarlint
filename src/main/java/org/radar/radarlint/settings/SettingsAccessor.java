@@ -1,10 +1,10 @@
-package org.radar.radarlint;
+package org.radar.radarlint.settings;
 
 /**
  *
  * @author Víctor
  */
-public interface PreferenceAccessor<T> {
+public interface SettingsAccessor<T> {
     
     void setValue(T value);
     

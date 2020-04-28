@@ -1,4 +1,4 @@
-package org.radar.radarlint;
+package org.radar.radarlint.settings;
 
 import java.util.prefs.Preferences;
 
@@ -6,7 +6,7 @@ import java.util.prefs.Preferences;
  *
  * @author Víctor
  */
-public abstract class AbstractPreferenceAccessor<T> implements PreferenceAccessor<T> {  
+public abstract class AbstractPreferenceAccessor<T> implements SettingsAccessor<T> {  
     
     private Preferences preferences;
     private String key;

@@ -1,7 +1,11 @@
 package org.radar.radarlint;
 
+import org.radar.radarlint.settings.SonarLintActivePreference;
+import org.radar.radarlint.settings.ServerUrlPreference;
+import org.radar.radarlint.settings.ExcludedFilePatterns;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -33,6 +37,8 @@ import org.sonarsource.sonarlint.core.client.api.connected.ConnectedAnalysisConf
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEngine;
 import org.sonarsource.sonarlint.core.client.api.connected.Language;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
+import org.radar.radarlint.settings.SettingsAccessor;
+import org.radar.radarlint.settings.TokenAccesor;
 
 /**
  *
@@ -100,12 +106,18 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
                     .addInputFiles(inputFiles)
                     .putAllExtraProperties(extraProperties)
                     .build();
-
-                ServerConfiguration serverConfiguration=ServerConfiguration.builder()
+                ServerConfiguration.Builder serverConfigurationBuilder = ServerConfiguration.builder();
+                serverConfigurationBuilder
                     .url(new ServerUrlPreference().getValue())
-                    .userAgent(USER_AGENT)
-                    //.credentials(login, password)
-                    .build();
+                    .userAgent(USER_AGENT);
+                
+                char[] token = new TokenAccesor().getValue();
+                if(token != null) {
+                    serverConfigurationBuilder.token(new String(token));
+                    Arrays.fill(token, (char)0);
+                }
+                
+                ServerConfiguration serverConfiguration=serverConfigurationBuilder.build();
                 ConnectedSonarLintEngine engine = SonarLintEngineFactory.getOrCreateEngine(enabledLanguages);
                 if(engine.checkIfGlobalStorageNeedUpdate(serverConfiguration, new ProgressMonitor() {}).needUpdate()) {
                     LOGGER.log(Level.INFO, "{0} Updating global", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
@@ -170,12 +182,12 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
     private static boolean isScanningNeeded(FileObject fileObject) {
         Project ownerProject = FileOwnerQuery.getOwner(fileObject);
         Preferences preferences = ProjectUtils.getPreferences(ownerProject, SonarLintPropertiesComponent.class, false);
-        PreferenceAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
+        SettingsAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
         return sonarLintActivePreference.getValue() && !isExcludedFile(preferences, fileObject);
     }
     
     public static boolean isExcludedFile(Preferences preferences, FileObject fileObject) {
-        PreferenceAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
+        SettingsAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
         String patterns[] = excludedFilePatternsPreference.getValue().split("\\s*,\\s*");
         for (String pattern : patterns) {
             if (Pattern.compile(pattern).matcher(fileObject.getNameExt()).matches()) {

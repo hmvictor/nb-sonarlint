@@ -1,6 +1,7 @@
-package org.radar.radarlint;
+package org.radar.radarlint.settings;
 
 import org.openide.util.NbPreferences;
+import org.radar.radarlint.SonarLintSaveTask;
 
 /**
  *

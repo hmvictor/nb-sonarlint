@@ -8,10 +8,10 @@ import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.spi.project.ui.support.ProjectCustomizer;
 import org.openide.util.Lookup;
 import org.radar.radarlint.EditorAnnotator;
-import org.radar.radarlint.PreferenceAccessor;
-import org.radar.radarlint.ExcludedFilePatterns;
-import org.radar.radarlint.SonarLintActivePreference;
+import org.radar.radarlint.settings.ExcludedFilePatterns;
+import org.radar.radarlint.settings.SonarLintActivePreference;
 import org.radar.radarlint.SonarLintScanner;
+import org.radar.radarlint.settings.SettingsAccessor;
 
 /**
  *
@@ -35,8 +35,8 @@ public class SonarLintCustomizerTab implements ProjectCustomizer.CompositeCatego
         Project currentProject = lookup.lookup(Project.class);
         Preferences preferences = ProjectUtils.getPreferences(currentProject, SonarLintPropertiesComponent.class, false);
         
-        PreferenceAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
-        PreferenceAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
+        SettingsAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
+        SettingsAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
         
         category.setOkButtonListener((ActionEvent e) -> {
             if(category.isValid()) {

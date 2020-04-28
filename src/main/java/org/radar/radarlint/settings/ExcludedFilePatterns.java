@@ -1,4 +1,4 @@
-package org.radar.radarlint;
+package org.radar.radarlint.settings;
 
 import java.util.prefs.Preferences;
 

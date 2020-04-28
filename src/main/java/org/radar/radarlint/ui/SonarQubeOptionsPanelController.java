@@ -7,12 +7,14 @@ import org.netbeans.spi.options.OptionsPanelController;
 import org.openide.util.HelpCtx;
 import org.openide.util.Lookup;
 
+@org.openide.util.NbBundle.Messages({
+    "AdvancedOption_DisplayName_SonarQube=SonarLint", "AdvancedOption_Keywords_SonarQube=sonar"
+})
 @OptionsPanelController.SubRegistration(
         location = "Advanced",
         displayName = "#AdvancedOption_DisplayName_SonarQube",
         keywords = "#AdvancedOption_Keywords_SonarQube",
-        keywordsCategory = "Advanced/SonarQube")
-@org.openide.util.NbBundle.Messages({"AdvancedOption_DisplayName_SonarQube=SonarQube", "AdvancedOption_Keywords_SonarQube=sonar"})
+        keywordsCategory = "Advanced/SonarLint")
 public final class SonarQubeOptionsPanelController extends OptionsPanelController {
 
     private SonarQubeOptionsPanel panel;
