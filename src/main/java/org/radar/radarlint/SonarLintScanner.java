@@ -67,7 +67,7 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
         
         EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject);
         CompletableFuture.supplyAsync(this)
-            .exceptionallyAsync((Throwable t) -> {
+            .exceptionally((Throwable t) -> {
                 LOGGER.log(Level.WARNING, t.toString(), t);
                 return null;
             });

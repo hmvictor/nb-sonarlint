@@ -3,7 +3,6 @@ package org.radar.radarlint.ui;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.util.ResourceBundle;
-import javax.swing.JOptionPane;
 import javax.swing.text.Element;
 import javax.swing.text.JTextComponent;
 import org.netbeans.api.editor.EditorActionRegistration;
@@ -15,7 +14,6 @@ import org.openide.filesystems.FileObject;
 import org.openide.util.NbBundle;
 import org.openide.windows.WindowManager;
 import org.radar.radarlint.EditorAnnotator;
-import org.radar.radarlint.IssueAnnotation;
 import org.radar.radarlint.SonarLintEngineFactory;
 import org.sonarsource.sonarlint.core.client.api.connected.Language;
 
@@ -23,7 +21,6 @@ import org.sonarsource.sonarlint.core.client.api.connected.Language;
  *
  * @author Víctor
  */
-
 @NbBundle.Messages({
     "CTL_SomeAction=Show Rule Details",
     "show-rule-details=Show Rule Details"

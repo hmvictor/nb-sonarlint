@@ -8,7 +8,7 @@ import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
  * @author Victor
  */
 public class IssueAnnotation extends Annotation{
-    private Issue issue;
+    private final Issue issue;
     private final Severity severity;
     private final String description;
 
