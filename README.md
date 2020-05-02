@@ -12,3 +12,9 @@ The SonarQube server url (default is http://localhost:9000) and user token can b
 ## Per Project Properties ##
 
 SonarLint can be enabled or disabled per project in **Properties > SonarLint**. A list of excluded files can also be defined in this section.
+
+## Installation ##
+
+The plan is that after some stabilization, the plugin will be in the Netbeans plugin portal and in the Update center. Meanwhile, you can compile the plugin with maven (excute **mvn install**, plugin file with the nbm extension will be generated in the target directory) and do a [manual installation](http://wiki.netbeans.org/InstallingAPlugin).
+
+The project was made with Java 11.
