@@ -39,13 +39,14 @@ import org.sonarsource.sonarlint.core.client.api.connected.Language;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
 import org.radar.radarlint.settings.SettingsAccessor;
 import org.radar.radarlint.settings.TokenAccesor;
+import org.sonarsource.sonarlint.core.client.api.exceptions.StorageException;
 
 /**
  *
  * @author Víctor
  */
 public class SonarLintScanner implements Supplier<List<Issue>>  {
-    private static final Logger LOGGER = Logger.getLogger(SonarLintSaveTask.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(SonarLintScanner.class.getName());
     
     private static final String USER_AGENT = "SonarLint Netbeans";
     
@@ -66,16 +67,18 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
         LOGGER.log(Level.INFO, "perform on file object path: {0}", fileObject.getPath());
         
         EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject);
-        CompletableFuture.supplyAsync(this)
-            .exceptionally((Throwable t) -> {
-                LOGGER.log(Level.WARNING, t.toString(), t);
-                return null;
+        CompletableFuture
+            .supplyAsync(this)
+            .whenCompleteAsync((issues, throwable) -> {
+                if(throwable != null) {
+                    LOGGER.log(Level.WARNING, throwable.toString(), throwable);
+                }
             });
     }
     
     @Override
     public List<Issue> get() {
-        ProgressHandle handle = ProgressHandle.createHandle("SonarLint");
+        ProgressHandle handle = ProgressHandle.createHandle("SonarLint - Starting");
         SwingUtilities.invokeLater(() -> {
             handle.start();
             handle.switchToIndeterminate();
@@ -121,14 +124,22 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
                 ConnectedSonarLintEngine engine = SonarLintEngineFactory.getOrCreateEngine(enabledLanguages);
                 if(engine.checkIfGlobalStorageNeedUpdate(serverConfiguration, new ProgressMonitor() {}).needUpdate()) {
                     LOGGER.log(Level.INFO, "{0} Updating global", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
+                    handle.setDisplayName("SonarLint - Updating global storage");
                     engine.update(serverConfiguration, new ProgressMonitor() { });
                 }
-                
-                if(engine.checkIfProjectStorageNeedUpdate(serverConfiguration, projectKey.get(), new ProgressMonitor() { }).needUpdate()) {
+                boolean projectStorajeNeedsUpdate=false;
+                try{
+                    projectStorajeNeedsUpdate=engine.checkIfProjectStorageNeedUpdate(serverConfiguration, projectKey.get(), new ProgressMonitor() { }).needUpdate();
+                }catch(StorageException ex) {
+                    projectStorajeNeedsUpdate=true;
+                }
+                if(projectStorajeNeedsUpdate) {
                     LOGGER.log(Level.INFO, "{0} Updating project", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
+                    handle.setDisplayName("SonarLint - Updating project storage");
                     engine.updateProject(serverConfiguration, projectKey.get(), new ProgressMonitor() { });
                 }
                 LOGGER.log(Level.INFO, "{0} Start analisys", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
+                handle.setDisplayName("SonarLint - Running analysis");
                 engine.analyze(analysisConfig, (Issue issue) -> {
                     LOGGER.log(Level.INFO, "Issue: {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}", new Object[]{issue.getInputFile().relativePath(), issue.getStartLine(), issue.getStartLineOffset(), issue.getEndLine(), issue.getEndLineOffset(), issue.getSeverity(), issue.getRuleName(), issue.getType(), issue.getMessage()});
                     FileObject fileObject1 = issue.getInputFile().getClientObject();
@@ -181,9 +192,13 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
     
     private static boolean isScanningNeeded(FileObject fileObject) {
         Project ownerProject = FileOwnerQuery.getOwner(fileObject);
-        Preferences preferences = ProjectUtils.getPreferences(ownerProject, SonarLintPropertiesComponent.class, false);
-        SettingsAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
-        return sonarLintActivePreference.getValue() && !isExcludedFile(preferences, fileObject);
+        if(ownerProject == null) {
+            return false;
+        }else{
+            Preferences preferences = ProjectUtils.getPreferences(ownerProject, SonarLintPropertiesComponent.class, false);
+            SettingsAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
+            return sonarLintActivePreference.getValue() && !isExcludedFile(preferences, fileObject);
+        }
     }
     
     public static boolean isExcludedFile(Preferences preferences, FileObject fileObject) {

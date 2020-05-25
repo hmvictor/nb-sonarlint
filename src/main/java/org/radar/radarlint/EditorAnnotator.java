@@ -104,10 +104,12 @@ public final class EditorAnnotator {
     
     public Optional<IssueAnnotation> getIssueAnnotation(FileObject fileObject, int line) {
         Project ownerProject = FileOwnerQuery.getOwner(fileObject);
-        Map<String, List<IssueAnnotation>> editorAnnotationsByFile = editorAnnotationsMap.getOrDefault(ownerProject.getProjectDirectory().getPath(), new HashMap<>());
-        for (IssueAnnotation annotation : editorAnnotationsByFile.getOrDefault(fileObject.getPath(), new LinkedList<>())) {
-            if(annotation.getIssue().getStartLine() != null && annotation.getIssue().getStartLine() == line) {
-                return Optional.of(annotation);
+        if(ownerProject != null) {
+            Map<String, List<IssueAnnotation>> editorAnnotationsByFile = editorAnnotationsMap.getOrDefault(ownerProject.getProjectDirectory().getPath(), new HashMap<>());
+            for (IssueAnnotation annotation : editorAnnotationsByFile.getOrDefault(fileObject.getPath(), new LinkedList<>())) {
+                if(annotation.getIssue().getStartLine() != null && annotation.getIssue().getStartLine() == line) {
+                    return Optional.of(annotation);
+                }
             }
         }
         return Optional.empty();
