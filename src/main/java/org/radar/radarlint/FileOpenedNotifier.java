@@ -3,6 +3,7 @@ package org.radar.radarlint;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataObject;
@@ -18,7 +19,6 @@ import org.openide.windows.WindowManager;
  */
 public class FileOpenedNotifier implements PropertyChangeListener {
 
-
     public void init() {
         WindowManager.getDefault().getRegistry().addPropertyChangeListener(this);
     }
@@ -26,24 +26,21 @@ public class FileOpenedNotifier implements PropertyChangeListener {
     @Override
     public void propertyChange(PropertyChangeEvent event) {
         if(TopComponent.Registry.PROP_TC_OPENED.equals(event.getPropertyName())) {
-            getFileObject((TopComponent) event.getNewValue()).ifPresent((fileObject) -> {
+            getFileObject((TopComponent) event.getNewValue()).ifPresent(fileObject -> {
                 try{
-                    SonarLintScanner.of(fileObject).ifPresent(scanner -> {
-                        scanner.runAsync();
-                    });
+                    SonarLintScanner.of(fileObject).ifPresent(scanner -> scanner.runAsync());
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
             });
-        }else if(TopComponent.Registry.PROP_TC_CLOSED.equals(event.getPropertyName())) {
-            getFileObject((TopComponent) event.getNewValue()).ifPresent((fileObject) -> {
-                EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject);
-            });
+        } else if(TopComponent.Registry.PROP_TC_CLOSED.equals(event.getPropertyName())) {
+            getFileObject((TopComponent) event.getNewValue())
+                .ifPresent(fileObject -> EditorAnnotator.getInstance().cleanEditorAnnotations(fileObject));
         }
     }
 
-    private Optional<FileObject> getFileObject(TopComponent topComponent) {
-        assert topComponent != null;
+    public static Optional<FileObject> getFileObject(TopComponent topComponent) {
+        Objects.requireNonNull(topComponent);
         FileObject fileObject = null;
         DataObject dataObject = topComponent.getLookup().lookup(DataObject.class);
         if (dataObject != null) {

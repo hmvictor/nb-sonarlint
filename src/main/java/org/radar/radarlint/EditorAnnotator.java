@@ -31,6 +31,16 @@ public final class EditorAnnotator {
     private EditorAnnotator() {
         
     }
+    
+    public Optional<EditorCookie> getEditorCookie(FileObject fileObject) throws DataObjectNotFoundException {
+        DataObject dataObject=DataObject.find(fileObject);
+        if(dataObject != null) {
+            Lookup lookup = dataObject.getLookup();
+            return Optional.ofNullable(lookup.lookup(EditorCookie.class));
+        } else {
+            return Optional.empty();
+        }
+    }
 
     private EditorCookie getEditorCookie(DataObject dataObject) throws DataObjectNotFoundException {
         Lookup lookup = dataObject.getLookup();

@@ -1,13 +1,17 @@
 package org.radar.radarlint.ui;
 
 import java.awt.event.ActionEvent;
+import java.io.IOException;
 import java.util.prefs.Preferences;
 import javax.swing.JComponent;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.spi.project.ui.support.ProjectCustomizer;
+import org.openide.util.Exceptions;
 import org.openide.util.Lookup;
+import org.openide.windows.WindowManager;
 import org.radar.radarlint.EditorAnnotator;
+import org.radar.radarlint.FileOpenedNotifier;
 import org.radar.radarlint.settings.ExcludedFilePatterns;
 import org.radar.radarlint.settings.SonarLintActivePreference;
 import org.radar.radarlint.SonarLintScanner;
@@ -48,11 +52,26 @@ public class SonarLintCustomizerTab implements ProjectCustomizer.CompositeCatego
                 if(!component.isSonarLintActive()) {
                     editorAnnotator.cleanEditorAnnotations(currentProject);
                 }else{
-                    editorAnnotator.getFileObjects(currentProject).forEach((fileObject) -> {
+                    editorAnnotator.getFileObjects(currentProject).forEach(fileObject -> {
                         if(SonarLintScanner.isExcludedFile(preferences, fileObject)) {
                             editorAnnotator.cleanEditorAnnotations(fileObject);
                         }
                     });
+                    WindowManager.getDefault().getRegistry().getOpened().forEach(topComponent -> 
+                        FileOpenedNotifier.getFileObject(topComponent).ifPresent(fileObject -> {
+                            try{
+                                editorAnnotator.getEditorCookie(fileObject).ifPresent(editorCookie -> {
+                                    try {
+                                        SonarLintScanner.of(fileObject).ifPresent(scanner -> scanner.runAsync());
+                                    } catch (IOException ex) {
+                                        throw new RuntimeException(ex);
+                                    }
+                                });
+                            } catch (IOException ex) {
+                                throw new RuntimeException(ex);
+                            }
+                        })
+                    );
                 }
             }
         });

@@ -4,5 +4,5 @@ OpenIDE-Module-Layer: org/radar/radarlint/layer.xml
 OpenIDE-Module-Localizing-Bundle: org/radar/radarlint/Bundle.properties
 OpenIDE-Module-Requires: org.openide.windows.WindowManager
 OpenIDE-Module-Short-Description: SonarLint Plugin
-OpenIDE-Module-Long-Description: SonarLint Plugin for Maven based projects
+OpenIDE-Module-Long-Description: SonarLint Plugin for Netbeans
 
