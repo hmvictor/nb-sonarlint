@@ -9,6 +9,7 @@ import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileObject;
+import org.radar.radarlint.settings.ProjectKeySeparatorPreference;
 
 /**
  *
@@ -44,7 +45,7 @@ public class MvnProjectAnalyzer {
         if (groupId == null && model.getParent() != null) {
             groupId = model.getParent().getGroupId();
         }
-        return groupId + ":" + model.getArtifactId();
+        return groupId + new ProjectKeySeparatorPreference().getValue() + model.getArtifactId();
     }
     
 }
