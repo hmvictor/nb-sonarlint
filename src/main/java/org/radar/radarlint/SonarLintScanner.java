@@ -39,6 +39,7 @@ import org.sonarsource.sonarlint.core.client.api.connected.Language;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
 import org.radar.radarlint.settings.SettingsAccessor;
 import org.radar.radarlint.settings.TokenAccesor;
+import org.sonarsource.sonarlint.core.client.api.connected.GlobalStorageStatus;
 import org.sonarsource.sonarlint.core.client.api.exceptions.StorageException;
 
 /**
@@ -122,7 +123,10 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
                 
                 ServerConfiguration serverConfiguration=serverConfigurationBuilder.build();
                 ConnectedSonarLintEngine engine = SonarLintEngineFactory.getOrCreateEngine(enabledLanguages);
-                if(engine.checkIfGlobalStorageNeedUpdate(serverConfiguration, new ProgressMonitor() {}).needUpdate()) {
+                GlobalStorageStatus gss = engine.getGlobalStorageStatus();
+                if (gss == null || gss.getLastUpdateDate() == null
+                    || engine.checkIfGlobalStorageNeedUpdate(serverConfiguration, new ProgressMonitor() {}).needUpdate()
+                ) {
                     LOGGER.log(Level.INFO, "{0} Updating global", new Object[]{(System.currentTimeMillis()-startTime)/1000f});
                     handle.setDisplayName("SonarLint - Updating global storage");
                     engine.update(serverConfiguration, new ProgressMonitor() { });
