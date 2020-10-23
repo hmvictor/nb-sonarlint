@@ -28,6 +28,7 @@ import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.modules.parsing.api.Source;
 import org.openide.filesystems.FileObject;
+import org.radar.radarlint.settings.ProjectKeyOverridePreference;
 import org.radar.radarlint.ui.SonarLintPropertiesComponent;
 import org.sonarsource.sonarlint.core.client.api.common.LogOutput;
 import org.sonarsource.sonarlint.core.client.api.common.ProgressMonitor;
@@ -181,6 +182,12 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
     }
 
     public String getProjectKey(Project project) {
+        //If there's a project key override for this project, use it.
+        String overriddenProjectKey = getProjectKeyOverride(project);
+        if (overriddenProjectKey != null && !"".equals(overriddenProjectKey.trim())) {
+            return overriddenProjectKey;
+        }
+
         MvnProjectAnalyzer mvnProjectAnalyzer = new MvnProjectAnalyzer();
         Model model=mvnProjectAnalyzer.createModel(project);
         if(model != null) {
@@ -188,6 +195,12 @@ public class SonarLintScanner implements Supplier<List<Issue>>  {
         }else{
             return ProjectUtils.getInformation(project).getName();
         }
+    }
+
+    private String getProjectKeyOverride(Project project) {
+        Preferences preferences = ProjectUtils.getPreferences(project, SonarLintPropertiesComponent.class, false);
+        SettingsAccessor<String> projectKeyOverridePreference = new ProjectKeyOverridePreference(preferences);
+        return projectKeyOverridePreference.getValue();
     }
     
     private static boolean isScanningNeeded(FileObject fileObject) {
