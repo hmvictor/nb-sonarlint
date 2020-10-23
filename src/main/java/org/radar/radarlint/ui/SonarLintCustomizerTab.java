@@ -7,7 +7,6 @@ import javax.swing.JComponent;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.spi.project.ui.support.ProjectCustomizer;
-import org.openide.util.Exceptions;
 import org.openide.util.Lookup;
 import org.openide.windows.WindowManager;
 import org.radar.radarlint.EditorAnnotator;
@@ -15,6 +14,7 @@ import org.radar.radarlint.FileOpenedNotifier;
 import org.radar.radarlint.settings.ExcludedFilePatterns;
 import org.radar.radarlint.settings.SonarLintActivePreference;
 import org.radar.radarlint.SonarLintScanner;
+import org.radar.radarlint.settings.ProjectKeyOverridePreference;
 import org.radar.radarlint.settings.SettingsAccessor;
 
 /**
@@ -40,12 +40,14 @@ public class SonarLintCustomizerTab implements ProjectCustomizer.CompositeCatego
         Preferences preferences = ProjectUtils.getPreferences(currentProject, SonarLintPropertiesComponent.class, false);
         
         SettingsAccessor<Boolean> sonarLintActivePreference=new SonarLintActivePreference(preferences);
-        SettingsAccessor<String> excludedFilePatternsPreference=new ExcludedFilePatterns(preferences);
-        
+        SettingsAccessor<String> projectKeyOverridePreference = new ProjectKeyOverridePreference(preferences);
+        SettingsAccessor<String> excludedFilePatternsPreference = new ExcludedFilePatterns(preferences);
+
         category.setOkButtonListener((ActionEvent e) -> {
             if(category.isValid()) {
                 //save current properties
                 sonarLintActivePreference.setValue(component.isSonarLintActive());
+                projectKeyOverridePreference.setValue(component.getProjectKeyOverride());
                 excludedFilePatternsPreference.setValue(component.getExcludedFilePatterns());
                 
                 EditorAnnotator editorAnnotator = EditorAnnotator.getInstance();
@@ -77,6 +79,7 @@ public class SonarLintCustomizerTab implements ProjectCustomizer.CompositeCatego
         });
         /* Load current properties*/
         component.setSonarLintActive(sonarLintActivePreference.getValue());
+        component.setProjectKeyOverride(projectKeyOverridePreference.getValue());
         component.setExcludedFilePatterns(excludedFilePatternsPreference.getValue());
         
         return component;
